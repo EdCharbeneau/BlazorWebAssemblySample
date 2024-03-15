@@ -1,0 +1,50 @@
+﻿@page "/articles"
+@rendermode InteractiveWebAssembly
+@inject IArticleService service
+
+@inject PersistentComponentState ApplicationState
+@implements IDisposable
+
+<h3>List View</h3>
+
+<ul>
+
+    @foreach (var item in articles)
+    {
+        <li>@item</li>
+    }
+
+</ul>
+
+<button @onclick="Reload">Reload</button>
+
+@code {
+    public string[] articles = [];
+    private PersistingComponentStateSubscription persistingSubscription;
+
+    protected override async Task OnInitializedAsync()
+    {
+        persistingSubscription = ApplicationState.RegisterOnPersisting(PersistCount);
+
+        if (!ApplicationState.TryTakeFromJson<string[]>(nameof(articles), out var restoredArticles))
+        {
+            articles = await service.GetArticleTitles(5);
+        }
+        else
+        {
+            articles = restoredArticles!;
+        }
+    }
+
+    private Task PersistCount()
+    {
+        ApplicationState.PersistAsJson(nameof(articles), articles);
+
+        return Task.CompletedTask;
+    }
+
+    private async Task Reload() => articles = await service.GetArticleTitles(10);
+
+    void IDisposable.Dispose() => persistingSubscription.Dispose();
+
+}
